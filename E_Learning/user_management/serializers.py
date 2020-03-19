@@ -1,4 +1,5 @@
 from rest_framework import serializers
 
-class userSerializer(serializers.Serializer):
-    username = serializers.CharField()
+class resetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField()
+    resetKey = serializers.CharField()
