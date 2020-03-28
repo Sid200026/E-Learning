@@ -198,8 +198,10 @@ class SocialSignUp(APIView):
                         }
                         return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    # Redirect to React Login Page
                     data = {"success": False, "errors": "Could not connect to LinkedIn"}
                     return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
             elif social_provider.provider == "Facebook":
                 pass
+        else:
+            data = {"success": False, "errors": "Could not connect to social accounts"}
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
