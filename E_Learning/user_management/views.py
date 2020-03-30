@@ -106,9 +106,12 @@ class SocialLogin(APIView):
         social_provider = SocialAccount.objects.filter(
             provider__iexact=provider
         ).first()
-        return HttpResponseRedirect(
-            f"{social_provider.authorization_code_url.format(social_provider.client_id, social_provider.redirect_url)}"
-        )
+        data = {
+            "success": True,
+            "errors": None,
+            "url": f"{social_provider.authorization_code_url.format(social_provider.client_id, social_provider.redirect_url)}",
+        }
+        return Response(data=data, status=status.HTTP_200_OK)
 
 
 class SocialSignUp(APIView):
