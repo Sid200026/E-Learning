@@ -5,12 +5,13 @@ from django.core.mail import EmailMessage
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import login
+from django.views import View
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from .serializers import resetPasswordSerializer
+from .serializers import resetPasswordSerializer, emailSerializer
 from .models import ResetPasswordLink, EmailTemplate, SocialAccount
 from .constants import ErrorMessages
 import requests
@@ -33,25 +34,34 @@ def passwordGenerator():
 
 def send_email(subject, body, to):
     email = EmailMessage(subject=subject, body=body, to=[to,])
-    email.send(fail_silently=False)
+    email.send(fail_silently=True)
 
 
-class ResetPassword(APIView):
-    def get_user(self, pk):
-        try:
-            return User.objects.get(email=pk)
-        except User.DoesNotExist:
-            raise Http404
-
-    def get(self, request, username, format=None):
-        user = self.get_user(username)
-        # TODO : Add an url link
+class SendResetEmail(APIView):
+    def post(self, request, format=None):
+        serializer = emailSerializer(data=request.data)
+        if not serializer.is_valid():
+            data = {
+                "result": False,
+                "error": ErrorMessages.notValid.value,
+                "message": "",
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        email = serializer.validated_data.get("email")
+        user = User.objects.filter(email=email).first()
         randomURL = ResetPasswordLink.getTokenForEmail(user)
+        if user is None:
+            data = {
+                "result": False,
+                "message": "",
+                "error": ErrorMessages.noMatch.value,
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         send_email(
-            "Reset Password Request",
+            "Password Reset Request",
             EmailTemplate.objects.filter(shortTitle__icontains="reset")[
                 0
-            ].template.format(user.username, randomURL),
+            ].template.format(user.first_name, randomURL),
             user.email,
         )
         data = {
@@ -61,27 +71,65 @@ class ResetPassword(APIView):
         }
         return Response(data=data, status=status.HTTP_200_OK)
 
-    def post(self, request, username, format=None):
+
+class ResetPassword(APIView):
+    def post(self, request, format=None):
         serializer = resetPasswordSerializer(data=request.data)
         if not serializer.is_valid():
-            data = {"result": False, "error": ErrorMessages.notValid.value}
+            data = {
+                "result": False,
+                "error": ErrorMessages.notValid.value,
+                "message": "",
+            }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         password = serializer.validated_data.get("password")
         resetKey = serializer.validated_data.get("resetKey")
-        user = self.get_user(username)
+        email = serializer.validated_data.get("email")
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            data = {
+                "result": False,
+                "message": "",
+                "error": ErrorMessages.noMatch.value,
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         try:
             validate_password(password)
         except Exception as error:
-            data = {"result": False, "error": str(error)}
+            data = {
+                "result": False,
+                "error": str(error),
+                "message": "",
+            }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         if check_password(password, user.password):
-            data = {"result": False, "error": ErrorMessages.samePassword.value}
+            data = {
+                "result": False,
+                "error": ErrorMessages.samePassword.value,
+                "message": "",
+            }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
-        if not resetKey == ResetPasswordLink.objects.get(user=user).passwordResetParam:
-            data = {"result": False, "error": ErrorMessages.invalidCode.value}
+        resetInst = ResetPasswordLink.objects.filter(user=user).first()
+        if resetInst is None:
+            data = {
+                "result": False,
+                "error": ErrorMessages.expired.value,
+                "message": "",
+            }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
-        if not ResetPasswordLink.objects.get(user=user).checkIfValid():
-            data = {"result": False, "error": ErrorMessages.expired.value}
+        if not resetKey == resetInst.passwordResetParam:
+            data = {
+                "result": False,
+                "error": ErrorMessages.invalidCode.value,
+                "message": "",
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        if not resetInst.checkIfValid():
+            data = {
+                "result": False,
+                "error": ErrorMessages.expired.value,
+                "message": "",
+            }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         else:
             user.set_password(password)
@@ -91,8 +139,9 @@ class ResetPassword(APIView):
                 "message": ErrorMessages.passwordChange.value,
                 "error": "",
             }
+            ResetPasswordLink.objects.filter(user=user).first().delete()
             send_email(
-                "Password Updated Successfullyƒ",
+                "Password Updated Successfully",
                 EmailTemplate.objects.filter(shortTitle__icontains="update")[
                     0
                 ].template.format(user.first_name),
@@ -114,7 +163,7 @@ class SocialLogin(APIView):
         return Response(data=data, status=status.HTTP_200_OK)
 
 
-class SocialSignUp(APIView):
+class SocialSignUp(View):
     def get(self, request, provider, format=None):
         authorization_code = request.GET.get("code")
         error = request.GET.get("error")
