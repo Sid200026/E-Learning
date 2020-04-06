@@ -51,14 +51,14 @@ class SendResetEmail(APIView):
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         email = serializer.validated_data.get("email")
         user = User.objects.filter(email=email).first()
-        randomURL = ResetPasswordLink.getTokenForEmail(user)
-        if user is None:
+        if User is None:
             data = {
                 "result": False,
+                "error": "No account exist with the provided E-Mail ID",
                 "message": "",
-                "error": ErrorMessages.noMatch.value,
             }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        randomURL = ResetPasswordLink.getTokenForEmail(user)
         send_email(
             "Password Reset Request",
             EmailTemplate.objects.filter(shortTitle__icontains="reset")[
@@ -100,7 +100,7 @@ class ResetPassword(APIView):
         except Exception as error:
             data = {
                 "result": False,
-                "error": str(error),
+                "error": error,
                 "message": "",
             }
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)

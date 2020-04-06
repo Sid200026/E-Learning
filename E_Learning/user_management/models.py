@@ -26,7 +26,7 @@ class ResetPasswordLink(models.Model):
             return True
 
     @classmethod
-    def getTokenForEmail(cls, user, **kwargs):
+    def getTokenForEmail(cls, user, testArgs=None):
         instance, created = cls.objects.get_or_create(
             user=user, defaults={"passwordResetParam": cls.generateRandomKey}
         )
