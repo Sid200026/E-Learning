@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "user_management",
     "comments",
+    "payment",
 ]
 
 MIDDLEWARE = [

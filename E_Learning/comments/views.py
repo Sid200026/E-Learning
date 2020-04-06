@@ -11,6 +11,9 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import CommentSerializer, ReplySerializer
 from .models import Comment, Reply, Course
 from .permissions import IsOwnerOrReadOnly
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 # Get method for this cbv will return all the comments along with requests for that course
 class CommentList(APIView):
@@ -18,21 +21,26 @@ class CommentList(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, course_id, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        comments = Comment.objects.filter(course=courseInst)
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
+            data = {"error": "Course does not exist", "result": False, "message": ""}
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        comments = Comment.objects.filter(course=coursePurchaseInst.course)
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data)
 
     def post(self, request, course_id, format=None):
         # Check if course exists
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         # Create the comment
         serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(author=self.request.user, course=courseInst)
+            serializer.save(author=self.request.user, course=coursePurchaseInst.course)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -49,20 +57,22 @@ class CommentDetail(APIView):
             raise Http404
 
     def get(self, request, course_id, pk, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
-        comment = self.get_object(pk, courseInst)
+        comment = self.get_object(pk, coursePurchaseInst.course)
         serializer = CommentSerializer(comment)
         return Response(serializer.data)
 
     def put(self, request, pk, course_id, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
-        comment = self.get_object(pk, courseInst)
+        comment = self.get_object(pk, coursePurchaseInst.course)
         serializer = CommentSerializer(comment, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -70,11 +80,12 @@ class CommentDetail(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk, course_id, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
-        comment = self.get_object(pk, courseInst)
+        comment = self.get_object(pk, coursePurchaseInst.course)
         comment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -90,8 +101,9 @@ class ReplyList(APIView):
             raise Http404
 
     def post(self, request, course_id, comment_id, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         serializer = ReplySerializer(data=request.data)
@@ -113,8 +125,9 @@ class ReplyDetail(APIView):
             raise Http404
 
     def get(self, request, course_id, comment_id, pk, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         reply = self.get_object(pk)
@@ -122,8 +135,9 @@ class ReplyDetail(APIView):
         return Response(serializer.data)
 
     def put(self, request, course_id, comment_id, pk, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         reply = self.get_object(pk)
@@ -134,8 +148,9 @@ class ReplyDetail(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, course_id, comment_id, pk, format=None):
-        courseInst = Course.objects.filter(pk=course_id).first()
-        if courseInst is None:
+        purchasedCourses = request.user.courses_purchased.all()
+        coursePurchaseInst = purchasedCourses.filter(pk=course_id).first()
+        if coursePurchaseInst is None:
             data = {"error": "Course does not exist", "result": False, "message": ""}
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         reply = self.get_object(pk)
