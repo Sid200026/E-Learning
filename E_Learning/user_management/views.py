@@ -21,6 +21,8 @@ import random
 
 User = get_user_model()
 
+# TODO : !Important -> Remove all API Response from Social Login and replace with path to React
+
 
 def passwordGenerator():
     chars = string.ascii_letters + string.digits
@@ -163,7 +165,7 @@ class SocialLogin(APIView):
         return Response(data=data, status=status.HTTP_200_OK)
 
 
-class SocialSignUp(View):
+class SocialSignUp(APIView):
     def get(self, request, provider, format=None):
         authorization_code = request.GET.get("code")
         error = request.GET.get("error")
