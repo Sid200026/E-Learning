@@ -19,7 +19,13 @@ import razorpay
 import pytz
 
 
-from .serializers import IDSerializer, StringIDSerializer, PaymentSerializer
+from .serializers import (
+    IDSerializer,
+    StringIDSerializer,
+    PaymentSerializer,
+    ReceiptSerializer,
+    CoursePurchasedSerializer,
+)
 from .models import CoursePurchased, Receipt
 from comments.models import Course
 import logging
@@ -219,3 +225,25 @@ class FetchRefund(APIView):
             return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class Receipts(APIView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        user = request.user
+        receiptInstances = Receipt.objects.filter(user=user)
+        serializer = ReceiptSerializer(receiptInstances, many=True)
+        return Response(serializer.data)
+
+
+class CoursesPurchased(APIView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        user = request.user
+        receiptInstances = CoursePurchased.objects.filter(user=user)
+        serializer = CoursePurchasedSerializer(receiptInstances, many=True)
+        return Response(serializer.data)

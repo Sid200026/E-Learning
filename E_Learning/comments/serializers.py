@@ -15,8 +15,8 @@ class NameSerializer(serializers.ModelSerializer):
 class CourseNameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = ["name"]
-        read_only_fields = ["name"]
+        fields = ["name", "id"]
+        read_only_fields = ["name", "id"]
 
 
 class ReplySerializer(serializers.ModelSerializer):
