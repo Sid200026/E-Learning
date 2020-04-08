@@ -6,4 +6,3 @@ from .models import Comment, Reply, Course
 admin.site.register(Comment)
 admin.site.register(Reply)
 admin.site.register(Course)
-

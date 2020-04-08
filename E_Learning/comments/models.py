@@ -7,6 +7,7 @@ User = get_user_model()
 class Course(models.Model):
     name = models.CharField(max_length=100)
     price = models.IntegerField()
+    currency = models.CharField(max_length=3, default="INR")
 
     def __str__(self):
         return f"{self.name}"
