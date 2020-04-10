@@ -6,6 +6,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import login
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -165,8 +167,13 @@ class SocialLogin(APIView):
         return Response(data=data, status=status.HTTP_200_OK)
 
 
-class SocialSignUp(APIView):
-    def get(self, request, provider, format=None):
+class SocialSignUp(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+
+    def get(self, request, provider):
         authorization_code = request.GET.get("code")
         error = request.GET.get("error")
         if authorization_code and error is None:
@@ -206,10 +213,7 @@ class SocialSignUp(APIView):
                             userInstance = User.objects.filter(email=email).first()
                             if userInstance is not None:
                                 login(request, userInstance)
-                                data = {"success": True, "errors": None}
-                                return Response(
-                                    data=data, status=status.HTTP_201_CREATED
-                                )
+                                return HttpResponse("User logged in")
                             new_password = passwordGenerator()
                             try:
                                 userInstance = User.objects.create_user(
@@ -220,13 +224,7 @@ class SocialSignUp(APIView):
                                     password=new_password,
                                 )
                             except:
-                                data = {
-                                    "success": False,
-                                    "errors": "Could not create a new user",
-                                }
-                                return Response(
-                                    data=data, status=status.HTTP_400_BAD_REQUEST
-                                )
+                                return HttpResponse("User cannot be created")
                             login(request, userInstance)
                             send_email(
                                 "Welcome to Be of Use",
@@ -235,27 +233,14 @@ class SocialSignUp(APIView):
                                 )[0].template.format(firstname, email, new_password),
                                 email,
                             )
-                            data = {"success": True, "errors": None}
-                            return Response(data=data, status=status.HTTP_201_CREATED)
+                            return HttpResponse("User created succesfully and logged in")
                         else:
-                            data = {
-                                "success": False,
-                                "errors": "Could not connect to LinkedIn",
-                            }
-                            return Response(
-                                data=data, status=status.HTTP_400_BAD_REQUEST
-                            )
+                            return HttpResponse("Could not connect to LinkedIn")
                     else:
-                        data = {
-                            "success": False,
-                            "errors": "Could not connect to LinkedIn",
-                        }
-                        return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+                        return HttpResponse("Could not connect to LinkedIn")
                 else:
-                    data = {"success": False, "errors": "Could not connect to LinkedIn"}
-                    return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+                    return HttpResponse("Could not connect to LinkedIn")
             elif social_provider.provider == "Facebook":
                 pass
         else:
-            data = {"success": False, "errors": "Could not connect to social accounts"}
-            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(request.GET.get("error_description"))
